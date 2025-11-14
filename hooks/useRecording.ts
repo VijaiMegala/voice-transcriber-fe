@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { liveKitService } from "@/services/livekit.service";
-import { apiService } from "@/services/api.service";
-import { ensureMicrophoneAccess } from "@/lib/utils";
+import { apiService, DictionaryItem } from "@/services/api.service";
+import { ensureMicrophoneAccess, replaceWordsWithDictionary } from "@/lib/utils";
 import { ConnectionState } from "livekit-client";
 import { speechRecognitionService } from "@/services/speech-recognition.service";
 
@@ -33,6 +33,7 @@ export function useRecording(): UseRecordingReturn {
   const isRecordingRef = useRef<boolean>(false);
   const baseTranscriptRef = useRef<string>(""); // Track final results only
   const interimTranscriptRef = useRef<string>(""); // Track current interim result
+  const dictionaryEntriesRef = useRef<DictionaryItem[]>([]); // Store dictionary entries for real-time replacement
 
   const startRecording = useCallback(async () => {
     // Prevent multiple simultaneous starts
@@ -53,6 +54,16 @@ export function useRecording(): UseRecordingReturn {
 
       // Check and request microphone permission before requesting token
       await ensureMicrophoneAccess();
+
+      // Load dictionary entries for real-time word replacement
+      try {
+        const entries = await apiService.getAllDictionaryEntries();
+        dictionaryEntriesRef.current = entries;
+        console.log("Loaded dictionary entries for real-time replacement:", entries.length);
+      } catch (error) {
+        console.warn("Failed to load dictionary entries, continuing without replacements:", error);
+        dictionaryEntriesRef.current = [];
+      }
 
       // Get token from backend
       const roomName = `room-${Date.now()}`;
@@ -126,13 +137,20 @@ export function useRecording(): UseRecordingReturn {
         }
         
         // Update base transcript (LiveKit sends final results)
+        const newText = text.trim();
         baseTranscriptRef.current = baseTranscriptRef.current 
-          ? baseTranscriptRef.current + " " + text 
-          : text;
+          ? baseTranscriptRef.current + " " + newText 
+          : newText;
         interimTranscriptRef.current = ""; // Clear any interim results
         
-        // Update displayed transcript
-        setTranscript(baseTranscriptRef.current);
+        // Apply dictionary replacements before displaying
+        const replacedText = replaceWordsWithDictionary(
+          baseTranscriptRef.current,
+          dictionaryEntriesRef.current
+        );
+        
+        // Update displayed transcript with replacements
+        setTranscript(replacedText);
         
         // Send transcript chunk to backend
         const currentRoomName = liveKitService.getRoomName();
@@ -180,8 +198,14 @@ export function useRecording(): UseRecordingReturn {
                   : finalText;
                 interimTranscriptRef.current = ""; // Clear interim result
                 
-                // Update displayed transcript (base only, no interim)
-                setTranscript(baseTranscriptRef.current);
+                // Apply dictionary replacements before displaying
+                const replacedText = replaceWordsWithDictionary(
+                  baseTranscriptRef.current,
+                  dictionaryEntriesRef.current
+                );
+                
+                // Update displayed transcript (base only, no interim) with replacements
+                setTranscript(replacedText);
                 
                 // Send transcript chunk to backend
                 const currentRoomName = liveKitService.getRoomName();
@@ -199,7 +223,14 @@ export function useRecording(): UseRecordingReturn {
                 const displayText = baseTranscriptRef.current 
                   ? baseTranscriptRef.current + " " + interimTranscriptRef.current
                   : interimTranscriptRef.current;
-                setTranscript(displayText);
+                
+                // Apply dictionary replacements to interim results as well
+                const replacedText = replaceWordsWithDictionary(
+                  displayText,
+                  dictionaryEntriesRef.current
+                );
+                
+                setTranscript(replacedText);
               }
             });
           } else {
@@ -297,7 +328,12 @@ export function useRecording(): UseRecordingReturn {
             // Otherwise, keep the client-side transcript to avoid duplicates
             if (!currentTranscript || 
                 (!backendNormalized.includes(currentNormalized) && !currentNormalized.includes(backendNormalized))) {
-              setTranscript(backendTranscript);
+              // Apply dictionary replacements to final transcript from backend
+              const replacedBackendTranscript = replaceWordsWithDictionary(
+                backendTranscript,
+                dictionaryEntriesRef.current
+              );
+              setTranscript(replacedBackendTranscript);
             } else {
               // Backend transcript is similar to what we have, keep client version to avoid duplicates
               console.log("Keeping client-side transcript to avoid duplicates");

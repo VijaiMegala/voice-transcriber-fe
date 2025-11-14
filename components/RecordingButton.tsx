@@ -74,11 +74,7 @@ export function RecordingButton({
           onClick={onToggle}
           disabled={isConnecting}
           size="lg"
-          className={`w-32 h-32 rounded-full relative z-10 ${
-            isMicOn
-              ? "bg-red-500 hover:bg-red-600"
-              : "bg-white hover:bg-white"
-          } ${isConnecting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+          className={`w-32 h-32 rounded-full relative z-10 bg-white hover:bg-white ${isConnecting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
         >
           {isMicOn ? (
             <MicOff className="text-pink-500 size-[50px]" />

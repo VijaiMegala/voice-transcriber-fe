@@ -62,7 +62,7 @@ export function Navigation({ className = "" }: NavigationProps) {
               Dictionary
             </Link>
             <Link
-              href="/Settings"
+              href=""
               className="text-md font-medium text-gray-700 transition-colors hover:opacity-50"
             >
               Settings

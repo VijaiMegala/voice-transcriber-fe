@@ -91,6 +91,25 @@ export interface GetTranscriptsQuery {
   limit?: number;
 }
 
+export interface CreateDictionaryDto {
+  currentWord: string;
+  replacementWord: string;
+}
+
+export interface UpdateDictionaryDto {
+  currentWord?: string;
+  replacementWord?: string;
+}
+
+export interface DictionaryItem {
+  wordId: number;
+  currentWord: string;
+  replacementWord: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 class ApiService {
   private getAuthToken(): string | null {
     if (typeof window === "undefined") return null;
@@ -390,6 +409,95 @@ class ApiService {
       }
       const error = await response.json().catch(() => ({ message: "Failed to delete transcript" }));
       throw new Error(error.message || "Failed to delete transcript");
+    }
+  }
+
+  async getAllDictionaryEntries(): Promise<DictionaryItem[]> {
+    const response = await fetch(`${API_BASE_URL}/dictionary`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      throw new Error("Failed to get dictionary entries");
+    }
+
+    return response.json();
+  }
+
+  async createDictionaryEntry(request: CreateDictionaryDto): Promise<DictionaryItem> {
+    const response = await fetch(`${API_BASE_URL}/dictionary`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      const error = await response.json().catch(() => ({ message: "Failed to create dictionary entry" }));
+      if (error.message && Array.isArray(error.message)) {
+        throw new Error(error.message.join(", "));
+      }
+      throw new Error(error.message || "Failed to create dictionary entry");
+    }
+
+    return response.json();
+  }
+
+  async updateDictionaryEntry(wordId: number, request: UpdateDictionaryDto): Promise<DictionaryItem> {
+    const response = await fetch(`${API_BASE_URL}/dictionary/${wordId}`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      const error = await response.json().catch(() => ({ message: "Failed to update dictionary entry" }));
+      if (error.message && Array.isArray(error.message)) {
+        throw new Error(error.message.join(", "));
+      }
+      throw new Error(error.message || "Failed to update dictionary entry");
+    }
+
+    return response.json();
+  }
+
+  async deleteDictionaryEntry(wordId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/dictionary/${wordId}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      const error = await response.json().catch(() => ({ message: "Failed to delete dictionary entry" }));
+      throw new Error(error.message || "Failed to delete dictionary entry");
     }
   }
 }

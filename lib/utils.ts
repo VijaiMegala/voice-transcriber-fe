@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { DictionaryItem } from "@/services/api.service"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -42,4 +43,65 @@ export async function ensureMicrophoneAccess(): Promise<void> {
       );
     }
   }
+}
+
+/**
+ * Replaces words in transcript text based on dictionary entries.
+ * Performs case-insensitive matching while preserving original case.
+ * Handles word boundaries to avoid partial matches.
+ * 
+ * @param text - The transcript text to process
+ * @param dictionaryEntries - Array of dictionary entries with currentWord and replacementWord
+ * @returns The text with dictionary replacements applied
+ */
+export function replaceWordsWithDictionary(
+  text: string,
+  dictionaryEntries: DictionaryItem[]
+): string {
+  if (!text || !text.trim() || !dictionaryEntries || dictionaryEntries.length === 0) {
+    return text;
+  }
+
+  let result = text;
+
+  // Sort entries by length (longest first) to handle cases where one word is a substring of another
+  const sortedEntries = [...dictionaryEntries].sort(
+    (a, b) => b.currentWord.length - a.currentWord.length
+  );
+
+  // Create a map for quick lookup while preserving order for longer matches
+  for (const entry of sortedEntries) {
+    const currentWord = entry.currentWord.trim();
+    const replacementWord = entry.replacementWord.trim();
+
+    if (!currentWord || !replacementWord) {
+      continue;
+    }
+
+    // Use word boundary regex to match whole words only
+    // This regex handles:
+    // - Start of string or non-word character before the word
+    // - End of string or non-word character after the word
+    // - Case-insensitive matching
+    const regex = new RegExp(
+      `\\b${currentWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+      "gi"
+    );
+
+    result = result.replace(regex, (match) => {
+      // Preserve the original case pattern
+      // If the matched word is all uppercase, keep replacement uppercase
+      // If the matched word starts with uppercase, capitalize first letter of replacement
+      // Otherwise, keep replacement as-is
+      if (match === match.toUpperCase()) {
+        return replacementWord.toUpperCase();
+      } else if (match[0] === match[0].toUpperCase()) {
+        return replacementWord.charAt(0).toUpperCase() + replacementWord.slice(1).toLowerCase();
+      } else {
+        return replacementWord;
+      }
+    });
+  }
+
+  return result;
 }
