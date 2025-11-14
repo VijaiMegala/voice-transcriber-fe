@@ -16,15 +16,15 @@ export function DictionarySearchBar({
   onAddClick,
 }: DictionarySearchBarProps) {
   return (
-    <div className="flex items-center gap-4 mb-6 justify-between">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
       <Input
         type="text"
         placeholder="Search"
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="flex-1 max-w-md"
+        className="flex-1 w-full sm:max-w-md"
       />
-      <Button onClick={onAddClick}>
+      <Button onClick={onAddClick} className="w-full sm:w-auto">
         <Plus className="mr-2 h-4 w-4" />
         Add
       </Button>

@@ -61,12 +61,36 @@ export function EditableCell({
     );
   }
 
+  const isTouchDevice = () => {
+    return (
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      (navigator as any).msMaxTouchPoints > 0
+    );
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // On mobile/touch devices, use single tap
+    if (isTouchDevice()) {
+      e.preventDefault();
+      onStartEdit();
+    }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    // Only allow double-click on non-touch devices
+    if (!isTouchDevice()) {
+      onStartEdit();
+    }
+  };
+
   return (
     <div
-      className={`flex items-center min-h-[32px] cursor-pointer ${className}`}
-      onDoubleClick={onStartEdit}
+      className={`flex items-center min-h-[32px] cursor-pointer touch-manipulation ${className}`}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
     >
-      <span className="text-gray-700">{value}</span>
+      <span className="text-xs sm:text-sm text-gray-700 truncate">{value}</span>
     </div>
   );
 }

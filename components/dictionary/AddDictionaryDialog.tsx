@@ -52,8 +52,8 @@ export function AddDictionaryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Dictionary Entry</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Add Dictionary Entry</DialogTitle>
+          <DialogDescription className="text-sm">
             Add a new word replacement pair to your dictionary.
           </DialogDescription>
         </DialogHeader>
@@ -66,6 +66,7 @@ export function AddDictionaryDialog({
               value={currentWord}
               onChange={(e) => setCurrentWord(e.target.value)}
               placeholder="e.g., Hello"
+              className="text-sm sm:text-base"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && currentWord.trim() && replacementWord.trim()) {
                   handleAdd();
@@ -81,6 +82,7 @@ export function AddDictionaryDialog({
               value={replacementWord}
               onChange={(e) => setReplacementWord(e.target.value)}
               placeholder="e.g., Hi"
+              className="text-sm sm:text-base"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && currentWord.trim() && replacementWord.trim()) {
                   handleAdd();
@@ -89,13 +91,14 @@ export function AddDictionaryDialog({
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel} disabled={isAdding}>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={handleCancel} disabled={isAdding} className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button
             onClick={handleAdd}
             disabled={isAdding || !currentWord.trim() || !replacementWord.trim()}
+            className="w-full sm:w-auto"
           >
             {isAdding ? "Adding..." : "Add"}
           </Button>

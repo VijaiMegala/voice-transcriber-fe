@@ -1,13 +1,7 @@
 "use client";
 
 import { DictionaryItem } from "@/services/api.service";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreVertical, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { EditableCell } from "./EditableCell";
 
 interface DictionaryTableRowProps {
@@ -31,7 +25,7 @@ export function DictionaryTableRow({
   const isEditingReplacement = editingEntry?.wordId === entry.wordId && editingEntry.field === "replacementWord";
 
   return (
-    <div className="grid grid-cols-[1fr_1fr_auto] gap-4 border-b border-gray-200 px-4 py-2 hover:bg-gray-50 transition-colors group">
+    <div className="grid grid-cols-[1fr_1fr_auto] gap-2 sm:gap-4 border-b border-gray-200 px-2 sm:px-4 py-2 hover:bg-gray-50 transition-colors group">
       <EditableCell
         value={entry.currentWord}
         isEditing={isEditingCurrent}
@@ -47,28 +41,16 @@ export function DictionaryTableRow({
         onCancel={onCancelEdit}
       />
       <div className="flex items-center justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-opacity"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(entry);
-              }}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          className="p-1.5 hover:bg-red-50 active:bg-red-100 rounded transition-colors text-red-600 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(entry);
+          }}
+          aria-label="Delete entry"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );

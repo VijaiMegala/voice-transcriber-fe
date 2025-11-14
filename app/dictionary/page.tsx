@@ -129,10 +129,10 @@ export default function DictionaryPage() {
   return (
     <PageLayout>
       <ToastProvider />
-      <div className="w-full max-w-7xl h-[calc(100vh-200px)] flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="w-full max-w-7xl h-[calc(100vh-120px)] sm:h-[calc(100vh-160px)] md:h-[calc(100vh-200px)] flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
         <DictionaryTabs />
 
-        <div className="flex-1 flex flex-col overflow-hidden p-6">
+        <div className="flex-1 flex flex-col overflow-hidden p-3 sm:p-4 md:p-6">
           <DictionarySearchBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}

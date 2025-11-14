@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiService, TranscriptItem } from "@/services/api.service";
-import { MoreVertical, Edit2, Trash2, Pencil } from "lucide-react";
+import { MoreVertical, Edit2, Trash2, Pencil, Menu } from "lucide-react";
 import Link from "next/link";
 
 type TabType = "history" | "dictionary";
@@ -41,6 +41,7 @@ export default function HistoryPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transcriptToDelete, setTranscriptToDelete] = useState<TranscriptItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     loadTranscripts();
@@ -178,36 +179,54 @@ export default function HistoryPage() {
 
   return (
     <PageLayout>
-      <div className="w-full max-w-7xl h-[calc(100vh-200px)] flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="w-full max-w-7xl h-[calc(100vh-120px)] sm:h-[calc(100vh-160px)] md:h-[calc(100vh-200px)] flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 px-6 pt-4">
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === "history"
-                ? "text-black border-b-2 border-black"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            History
-          </button>
-          <Link
-            href="/dictionary"
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === "dictionary"
-                ? "text-black border-b-2 border-black"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Dictionary
-          </Link>
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 pt-3 sm:pt-4">
+          <div className="flex items-center gap-2">
+            {/* Mobile Sidebar Toggle Button */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="md:hidden p-2 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="h-5 w-5 text-gray-700" />
+            </button>
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`px-3 sm:px-4 py-2 text-sm sm:text-base font-medium transition-colors ${
+                activeTab === "history"
+                  ? "text-black border-b-2 border-black"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              History
+            </button>
+            <Link
+              href="/dictionary"
+              className={`px-3 sm:px-4 py-2 text-sm sm:text-base font-medium transition-colors ${
+                activeTab === "dictionary"
+                  ? "text-black border-b-2 border-black"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Dictionary
+            </Link>
+          </div>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
+          {/* Mobile Sidebar Backdrop */}
+          {isSidebarOpen && (
+            <div
+              className="md:hidden fixed inset-0 bg-black/50 z-[5]"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+          )}
+
           {/* Left Sidebar */}
-          <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
+          <div className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 absolute md:relative z-10 w-full md:w-80 border-r border-gray-200 flex flex-col bg-gray-50 transition-transform duration-300 ease-in-out h-full`}>
             {/* Search Bar */}
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-3 sm:p-4 border-b border-gray-200">
               <Input
                 type="text"
                 placeholder="Search"
@@ -218,7 +237,7 @@ export default function HistoryPage() {
             </div>
 
             {/* Transcript List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
               {isLoading ? (
                 <div className="text-center text-gray-500 py-8">Loading...</div>
               ) : Object.keys(groupedTranscripts).length === 0 ? (
@@ -233,7 +252,7 @@ export default function HistoryPage() {
                   })
                   .map(([date, dateTranscripts]) => (
                     <div key={date} className="space-y-2">
-                      <div className="px-3 py-2 bg-white rounded-lg text-sm font-medium text-gray-700">
+                      <div className="px-3 py-2 bg-white rounded-lg text-xs sm:text-sm font-medium text-gray-700">
                         {date}
                       </div>
                       <div className="space-y-1">
@@ -245,9 +264,12 @@ export default function HistoryPage() {
                                 ? "bg-pink-100 text-pink-900"
                                 : "hover:bg-gray-100 text-gray-700"
                             }`}
-                            onClick={() => setSelectedTranscript(transcript)}
+                            onClick={() => {
+                              setSelectedTranscript(transcript);
+                              setIsSidebarOpen(false);
+                            }}
                           >
-                            <span className="flex-1 truncate text-sm">
+                            <span className="flex-1 truncate text-xs sm:text-sm">
                               {transcript.transcriptName}
                             </span>
                             <DropdownMenu>
@@ -297,8 +319,8 @@ export default function HistoryPage() {
           <div className="flex-1 flex flex-col overflow-hidden">
             {selectedTranscript ? (
               <>
-                <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                  <h2 className="text-xl font-semibold text-gray-800">
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 gap-2">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 truncate flex-1">
                     {selectedTranscript.transcriptName}
                   </h2>
                   {!isEditing && (
@@ -306,24 +328,26 @@ export default function HistoryPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setIsEditing(true)}
+                      className="flex-shrink-0"
                     >
-                      <Edit2 className="mr-2 h-4 w-4" />
-                      Edit
+                      <Edit2 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Edit</span>
                     </Button>
                   )}
                 </div>
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                   {isEditing ? (
                     <div className="space-y-4">
                       <Textarea
                         value={editedContent}
                         onChange={(e) => setEditedContent(e.target.value)}
-                        className="min-h-[400px] w-full"
+                        className="min-h-[300px] sm:min-h-[400px] w-full text-sm sm:text-base"
                       />
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <Button
                           onClick={handleSaveEdit}
                           disabled={isSaving}
+                          className="w-full sm:w-auto"
                         >
                           {isSaving ? "Saving..." : "Save"}
                         </Button>
@@ -334,14 +358,15 @@ export default function HistoryPage() {
                             setEditedContent(selectedTranscript.transcript);
                           }}
                           disabled={isSaving}
+                          className="w-full sm:w-auto"
                         >
                           Cancel
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 rounded-lg p-6 min-h-[400px]">
-                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    <div className="bg-gray-50 rounded-lg p-4 sm:p-6 min-h-[300px] sm:min-h-[400px]">
+                      <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap leading-relaxed">
                         {selectedTranscript.transcript || "Transcript 1 is the best ....."}
                       </p>
                     </div>
@@ -349,8 +374,8 @@ export default function HistoryPage() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-500">
-                Select a transcript to view
+              <div className="flex-1 flex items-center justify-center text-gray-500 p-4 text-center">
+                <p className="text-sm sm:text-base">Select a transcript to view</p>
               </div>
             )}
           </div>
@@ -361,8 +386,8 @@ export default function HistoryPage() {
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Transcript</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Rename Transcript</DialogTitle>
+            <DialogDescription className="text-sm">
               Enter a new name for this transcript.
             </DialogDescription>
           </DialogHeader>
@@ -370,23 +395,26 @@ export default function HistoryPage() {
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Transcript name"
+            className="text-sm sm:text-base"
             onKeyDown={(e) => {
               if (e.key === "Enter" && newName.trim()) {
                 handleRenameConfirm();
               }
             }}
           />
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setRenameDialogOpen(false)}
               disabled={isRenaming}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               onClick={handleRenameConfirm}
               disabled={isRenaming || !newName.trim()}
+              className="w-full sm:w-auto"
             >
               {isRenaming ? "Renaming..." : "Rename"}
             </Button>
@@ -398,16 +426,17 @@ export default function HistoryPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Transcript</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Delete Transcript</DialogTitle>
+            <DialogDescription className="text-sm break-words">
               Are you sure you want to delete "{transcriptToDelete?.transcriptName}"? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
               disabled={isDeleting}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
@@ -415,6 +444,7 @@ export default function HistoryPage() {
               variant="destructive"
               onClick={handleDeleteConfirm}
               disabled={isDeleting}
+              className="w-full sm:w-auto"
             >
               {isDeleting ? "Deleting..." : "Delete"}
             </Button>

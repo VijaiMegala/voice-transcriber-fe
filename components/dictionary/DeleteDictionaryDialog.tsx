@@ -34,16 +34,17 @@ export function DeleteDictionaryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete Dictionary Entry</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Delete Dictionary Entry</DialogTitle>
+          <DialogDescription className="text-sm break-words">
             Are you sure you want to delete "{entry?.currentWord}" → "{entry?.replacementWord}"? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
+            className="w-full sm:w-auto"
           >
             Cancel
           </Button>
@@ -51,6 +52,7 @@ export function DeleteDictionaryDialog({
             variant="destructive"
             onClick={handleConfirm}
             disabled={isDeleting}
+            className="w-full sm:w-auto"
           >
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>

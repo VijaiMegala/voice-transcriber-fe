@@ -90,7 +90,7 @@ export default function AuthPage() {
       <AuthCard>
         <AuthHeader title={config.title} description={config.description} />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           {mode === "signup" && (
             <AuthFormField
               id="username"
@@ -132,7 +132,7 @@ export default function AuthPage() {
 
           <Button
             type="submit"
-            className="w-full bg-pink-600 hover:bg-pink-700 text-white"
+            className="w-full bg-pink-600 hover:bg-pink-700 text-white text-sm sm:text-base"
             disabled={loading}
           >
             {loading ? "Please wait..." : config.buttonText}
