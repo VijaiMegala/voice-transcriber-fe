@@ -13,14 +13,34 @@ export function cn(...inputs: ClassValue[]) {
 export async function ensureMicrophoneAccess(): Promise<void> {
   // Check if getUserMedia is available
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new Error(
-      "Microphone access is not available in this browser. Please use a modern browser that supports getUserMedia."
-    );
+    // Fallback for older browsers
+    const getUserMedia = 
+      (navigator as any).getUserMedia ||
+      (navigator as any).webkitGetUserMedia ||
+      (navigator as any).mozGetUserMedia ||
+      (navigator as any).msGetUserMedia;
+    
+    if (!getUserMedia) {
+      throw new Error(
+        "Microphone access is not available in this browser. Please use a modern browser that supports getUserMedia."
+      );
+    }
   }
 
   try {
-    // Request microphone permission
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Request microphone permission with constraints optimized for mobile
+    const audioConstraints: MediaStreamConstraints = {
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        // Mobile-friendly constraints
+        sampleRate: { ideal: 16000 },
+        channelCount: { ideal: 1 },
+      },
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(audioConstraints);
     
     // Stop the stream immediately - we just needed to check/request permission
     stream.getTracks().forEach((track) => track.stop());
@@ -37,6 +57,18 @@ export async function ensureMicrophoneAccess(): Promise<void> {
       throw new Error(
         "Microphone is already in use by another application. Please close other applications using the microphone and try again."
       );
+    } else if (error.name === "OverconstrainedError") {
+      // Some constraints might not be supported, try with basic constraints
+      try {
+        const basicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        basicStream.getTracks().forEach((track) => track.stop());
+        // If basic constraints work, return successfully
+        return;
+      } catch (retryError: any) {
+        throw new Error(
+          `Failed to access microphone: ${retryError.message || "Unknown error"}`
+        );
+      }
     } else {
       throw new Error(
         `Failed to access microphone: ${error.message || "Unknown error"}`

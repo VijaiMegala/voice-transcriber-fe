@@ -166,6 +166,7 @@ export function useRecording(): UseRecordingReturn {
 
       // Set up fallback client-side speech recognition if available
       // Only start if LiveKit doesn't send transcripts within 3 seconds
+      // Note: Web Speech API is not available on iOS Safari
       if (speechRecognitionService.isAvailable()) {
         // Wait 3 seconds to see if LiveKit sends transcripts
         speechRecognitionTimeoutRef.current = setTimeout(() => {
@@ -238,7 +239,13 @@ export function useRecording(): UseRecordingReturn {
           }
         }, 3000);
       } else {
-        console.warn("Web Speech API not available. Please configure a transcription service on your LiveKit server.");
+        // Check if we're on iOS to provide a more helpful message
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        if (isIOS) {
+          console.warn("Web Speech API is not available on iOS. LiveKit transcription service is required for iOS devices.");
+        } else {
+          console.warn("Web Speech API not available. Please configure a transcription service on your LiveKit server.");
+        }
       }
 
       // Connect to LiveKit

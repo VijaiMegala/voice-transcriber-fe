@@ -66,15 +66,25 @@ class LiveKitService {
 
     // Create and publish audio track
     try {
-      const audioTrack = await createLocalAudioTrack({
+      // On mobile, ensure we request audio with proper constraints
+      const audioConstraints: MediaTrackConstraints = {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
+        // Add sample rate constraints for better mobile compatibility
+        sampleRate: { ideal: 16000 },
+        channelCount: { ideal: 1 },
+      };
+
+      const audioTrack = await createLocalAudioTrack({
+        ...audioConstraints,
       });
       this.audioTrack = audioTrack;
       
-      // Monitor audio levels
-      this.startAudioLevelMonitoring(audioTrack);
+      // Monitor audio levels (with delay to ensure track is ready on mobile)
+      setTimeout(() => {
+        this.startAudioLevelMonitoring(audioTrack);
+      }, 100);
       
       const publication = await room.localParticipant.publishTrack(audioTrack, {
         source: Track.Source.Microphone,
@@ -165,7 +175,22 @@ class LiveKitService {
 
     try {
       // Create audio context and analyser
-      this.audioContext = new AudioContext();
+      // Use AudioContext or webkitAudioContext for better mobile compatibility
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        console.warn("AudioContext not supported, audio level monitoring disabled");
+        return;
+      }
+
+      this.audioContext = new AudioContextClass();
+      
+      // Resume AudioContext if suspended (required on mobile browsers)
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().catch((error) => {
+          console.error("Error resuming AudioContext:", error);
+        });
+      }
+
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.smoothingTimeConstant = 0.8;
       this.analyser.fftSize = 256;
@@ -176,7 +201,7 @@ class LiveKitService {
 
       // Monitor audio levels every 100ms
       this.audioLevelInterval = setInterval(() => {
-        if (this.analyser) {
+        if (this.analyser && this.audioContext && this.audioContext.state === 'running') {
           const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
           this.analyser.getByteTimeDomainData(dataArray);
           
@@ -190,6 +215,11 @@ class LiveKitService {
           const normalizedLevel = Math.min(rms * 2, 1); // Amplify and clamp to 0-1
           
           this.audioLevelCallback?.(normalizedLevel);
+        } else if (this.audioContext && this.audioContext.state === 'suspended') {
+          // Try to resume if suspended
+          this.audioContext.resume().catch((error) => {
+            console.error("Error resuming suspended AudioContext:", error);
+          });
         }
       }, 100);
     } catch (error) {

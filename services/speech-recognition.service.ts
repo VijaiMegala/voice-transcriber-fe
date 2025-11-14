@@ -23,12 +23,26 @@ class SpeechRecognitionService {
         (window as any).webkitSpeechRecognition;
 
       if (SpeechRecognition) {
-        this.recognition = new SpeechRecognition();
-        this.setupRecognition();
+        try {
+          this.recognition = new SpeechRecognition();
+          this.setupRecognition();
+        } catch (error) {
+          console.warn("Failed to initialize SpeechRecognition:", error);
+          // Web Speech API might not be fully supported on this device
+          this.recognition = null;
+        }
       } else {
-        console.warn(
-          "Web Speech API is not supported in this browser. LiveKit transcription service is required."
-        );
+        // Check if we're on iOS (which doesn't support Web Speech API)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        if (isIOS) {
+          console.warn(
+            "Web Speech API is not supported on iOS Safari. LiveKit transcription service is required."
+          );
+        } else {
+          console.warn(
+            "Web Speech API is not supported in this browser. LiveKit transcription service is required."
+          );
+        }
       }
     }
   }
