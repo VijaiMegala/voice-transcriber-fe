@@ -67,7 +67,6 @@ export function AnimatedWrapper({
       return;
     }
 
-    // Reset and animate
     setIsVisible(false);
     const timer = setTimeout(() => {
       setIsVisible(true);

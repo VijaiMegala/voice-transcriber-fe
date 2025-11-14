@@ -80,7 +80,6 @@ export function ToastContainer({ toasts, onClose }: ToastContainerProps) {
   );
 }
 
-// Hook for managing toasts
 export function useToast() {
   const [toasts, setToasts] = React.useState<Toast[]>([]);
 

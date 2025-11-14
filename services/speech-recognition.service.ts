@@ -16,7 +16,6 @@ class SpeechRecognitionService {
   private isListening: boolean = false;
 
   constructor() {
-    // Check if Web Speech API is available
     if (typeof window !== "undefined") {
       const SpeechRecognition =
         (window as any).SpeechRecognition ||
@@ -28,11 +27,9 @@ class SpeechRecognitionService {
           this.setupRecognition();
         } catch (error) {
           console.warn("Failed to initialize SpeechRecognition:", error);
-          // Web Speech API might not be fully supported on this device
           this.recognition = null;
         }
       } else {
-        // Check if we're on iOS (which doesn't support Web Speech API)
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
         if (isIOS) {
           console.warn(
@@ -84,10 +81,8 @@ class SpeechRecognitionService {
     this.recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       if (event.error === "no-speech") {
-        // This is normal, just means no speech detected
         return;
       }
-      // For other errors, try to restart
       if (this.isListening) {
         try {
           this.recognition.stop();
@@ -103,7 +98,6 @@ class SpeechRecognitionService {
     };
 
     this.recognition.onend = () => {
-      // Auto-restart if we're still supposed to be listening
       if (this.isListening) {
         try {
           this.recognition.start();
@@ -128,7 +122,6 @@ class SpeechRecognitionService {
       console.log("Speech recognition started");
     } catch (error: any) {
       if (error.message?.includes("already started")) {
-        // Already started, ignore
         return;
       }
       console.error("Error starting speech recognition:", error);

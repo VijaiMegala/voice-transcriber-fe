@@ -31,12 +31,13 @@ export function useRecording(): UseRecordingReturn {
   const speechRecognitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const processedTranscriptsRef = useRef<Set<string>>(new Set());
   const isRecordingRef = useRef<boolean>(false);
-  const baseTranscriptRef = useRef<string>(""); // Track final results only
-  const interimTranscriptRef = useRef<string>(""); // Track current interim result
-  const dictionaryEntriesRef = useRef<DictionaryItem[]>([]); // Store dictionary entries for real-time replacement
+  const baseTranscriptRef = useRef<string>("");
+  const interimTranscriptRef = useRef<string>("");
+  const dictionaryEntriesRef = useRef<DictionaryItem[]>([]);
+  const transcriptPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPolledTranscriptRef = useRef<string>("");
 
   const startRecording = useCallback(async () => {
-    // Prevent multiple simultaneous starts
     if (isRecordingRef.current) {
       console.warn("Recording already in progress");
       return;
@@ -45,17 +46,15 @@ export function useRecording(): UseRecordingReturn {
     try {
       setError(null);
       setIsConnecting(true);
-      setIsTranscribing(false); // Reset transcription state
-      setTranscript(""); // Clear previous transcript
-      processedTranscriptsRef.current.clear(); // Clear processed transcripts set
-      baseTranscriptRef.current = ""; // Clear base transcript
-      interimTranscriptRef.current = ""; // Clear interim transcript
+      setIsTranscribing(false);
+      setTranscript("");
+      processedTranscriptsRef.current.clear();
+      baseTranscriptRef.current = "";
+      interimTranscriptRef.current = "";
+      lastPolledTranscriptRef.current = "";
       isRecordingRef.current = true;
 
-      // Check and request microphone permission before requesting token
       await ensureMicrophoneAccess();
-
-      // Load dictionary entries for real-time word replacement
       try {
         const entries = await apiService.getAllDictionaryEntries();
         dictionaryEntriesRef.current = entries;
@@ -65,7 +64,6 @@ export function useRecording(): UseRecordingReturn {
         dictionaryEntriesRef.current = [];
       }
 
-      // Get token from backend
       const roomName = `room-${Date.now()}`;
       const { token } = await apiService.getLiveKitToken({
         roomName,
@@ -77,8 +75,6 @@ export function useRecording(): UseRecordingReturn {
         throw new Error("LiveKit WebSocket URL is not configured. Please set NEXT_PUBLIC_LIVEKIT_WEB_SOCKET_URL in your .env.local file.");
       }
 
-      // Set up connection state callback
-      // Use a ref to track if we should handle disconnects (avoid stale closure)
       const shouldHandleDisconnectRef = { current: true };
       
       liveKitService.setConnectionStateCallback((state: ConnectionState) => {
@@ -90,28 +86,22 @@ export function useRecording(): UseRecordingReturn {
         }
       });
 
-      // Set up audio level callback
       liveKitService.setAudioLevelCallback((level: number) => {
         setAudioLevel(level);
       });
 
-      // Reset LiveKit transcript flag
       liveKitTranscriptReceivedRef.current = false;
 
-      // Set up transcript callback from LiveKit
       liveKitService.setTranscriptCallback(async (text: string) => {
-        if (!text || !text.trim()) return; // Ignore empty transcripts
+        if (!text || !text.trim()) return;
         
-        // Only process if we're still recording
         if (!isRecordingRef.current) {
           console.log("Ignoring LiveKit transcript - recording stopped");
           return;
         }
         
-        // Create a normalized key for deduplication (lowercase, trimmed)
         const normalizedKey = text.trim().toLowerCase();
         
-        // Skip if we've already processed this exact transcript
         if (processedTranscriptsRef.current.has(normalizedKey)) {
           console.log("Skipping duplicate LiveKit transcript:", text);
           return;
@@ -121,13 +111,9 @@ export function useRecording(): UseRecordingReturn {
         liveKitTranscriptReceivedRef.current = true;
         processedTranscriptsRef.current.add(normalizedKey);
         
-        // Mark transcription as active when we receive the first transcript
         setIsTranscribing(true);
         
-        // If LiveKit is sending transcripts, stop Web Speech API to avoid duplicates
-        // Only stop if it's actually running
         if (speechRecognitionService.isAvailable() && isRecordingRef.current) {
-          // Clear the timeout so it doesn't start
           if (speechRecognitionTimeoutRef.current) {
             clearTimeout(speechRecognitionTimeoutRef.current);
             speechRecognitionTimeoutRef.current = null;
@@ -136,23 +122,18 @@ export function useRecording(): UseRecordingReturn {
           console.log("Stopped Web Speech API - LiveKit transcription is active");
         }
         
-        // Update base transcript (LiveKit sends final results)
         const newText = text.trim();
         baseTranscriptRef.current = baseTranscriptRef.current 
           ? baseTranscriptRef.current + " " + newText 
           : newText;
-        interimTranscriptRef.current = ""; // Clear any interim results
+        interimTranscriptRef.current = "";
         
-        // Apply dictionary replacements before displaying
         const replacedText = replaceWordsWithDictionary(
           baseTranscriptRef.current,
           dictionaryEntriesRef.current
         );
         
-        // Update displayed transcript with replacements
         setTranscript(replacedText);
-        
-        // Send transcript chunk to backend
         const currentRoomName = liveKitService.getRoomName();
         if (currentRoomName) {
           apiService
@@ -164,26 +145,19 @@ export function useRecording(): UseRecordingReturn {
         }
       });
 
-      // Set up fallback client-side speech recognition if available
-      // Only start if LiveKit doesn't send transcripts within 3 seconds
-      // Note: Web Speech API is not available on iOS Safari
       if (speechRecognitionService.isAvailable()) {
-        // Wait 3 seconds to see if LiveKit sends transcripts
         speechRecognitionTimeoutRef.current = setTimeout(() => {
-          // If LiveKit hasn't sent any transcripts, start Web Speech API
           if (!liveKitTranscriptReceivedRef.current && isRecordingRef.current) {
             console.log("Starting fallback speech recognition (LiveKit transcription not detected)...");
-            setIsTranscribing(true); // Mark transcription as active when Web Speech API starts
+            setIsTranscribing(true);
             speechRecognitionService.start((result) => {
-              if (!isRecordingRef.current) return; // Don't process if recording stopped
+              if (!isRecordingRef.current) return;
               
               if (result.isFinal) {
-                if (!result.transcript || !result.transcript.trim()) return; // Ignore empty transcripts
+                if (!result.transcript || !result.transcript.trim()) return;
                 
-                // Create a normalized key for deduplication
                 const normalizedKey = result.transcript.trim().toLowerCase();
                 
-                // Skip if we've already processed this exact transcript
                 if (processedTranscriptsRef.current.has(normalizedKey)) {
                   console.log("Skipping duplicate Web Speech API transcript:", result.transcript);
                   return;
@@ -192,23 +166,18 @@ export function useRecording(): UseRecordingReturn {
                 console.log("Client-side transcript:", result.transcript);
                 processedTranscriptsRef.current.add(normalizedKey);
                 
-                // Add final result to base transcript and clear interim
                 const finalText = result.transcript.trim();
                 baseTranscriptRef.current = baseTranscriptRef.current 
                   ? baseTranscriptRef.current + " " + finalText 
                   : finalText;
-                interimTranscriptRef.current = ""; // Clear interim result
+                interimTranscriptRef.current = "";
                 
-                // Apply dictionary replacements before displaying
                 const replacedText = replaceWordsWithDictionary(
                   baseTranscriptRef.current,
                   dictionaryEntriesRef.current
                 );
                 
-                // Update displayed transcript (base only, no interim) with replacements
                 setTranscript(replacedText);
-                
-                // Send transcript chunk to backend
                 const currentRoomName = liveKitService.getRoomName();
                 if (currentRoomName) {
                   apiService
@@ -219,13 +188,11 @@ export function useRecording(): UseRecordingReturn {
                     .catch(console.error);
                 }
               } else {
-                // Show interim results - update interim ref and display base + interim
                 interimTranscriptRef.current = result.transcript.trim();
                 const displayText = baseTranscriptRef.current 
                   ? baseTranscriptRef.current + " " + interimTranscriptRef.current
                   : interimTranscriptRef.current;
                 
-                // Apply dictionary replacements to interim results as well
                 const replacedText = replaceWordsWithDictionary(
                   displayText,
                   dictionaryEntriesRef.current
@@ -239,7 +206,6 @@ export function useRecording(): UseRecordingReturn {
           }
         }, 3000);
       } else {
-        // Check if we're on iOS to provide a more helpful message
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
         if (isIOS) {
           console.warn("Web Speech API is not available on iOS. LiveKit transcription service is required for iOS devices.");
@@ -248,17 +214,45 @@ export function useRecording(): UseRecordingReturn {
         }
       }
 
-      // Connect to LiveKit
+      transcriptPollingIntervalRef.current = setInterval(async () => {
+        if (!isRecordingRef.current) return;
+        
+        const roomName = liveKitService.getRoomName();
+        if (roomName && !liveKitTranscriptReceivedRef.current) {
+          try {
+            const { transcript: backendTranscript } = await apiService.getFinalTranscript({ roomName });
+            if (backendTranscript && backendTranscript.trim() && 
+                !backendTranscript.includes("There is no transcript") &&
+                backendTranscript !== lastPolledTranscriptRef.current) {
+              
+              console.log("Received transcript from backend polling:", backendTranscript);
+              lastPolledTranscriptRef.current = backendTranscript;
+              
+              liveKitTranscriptReceivedRef.current = true;
+              setIsTranscribing(true);
+              
+              const replacedText = replaceWordsWithDictionary(
+                backendTranscript.trim(),
+                dictionaryEntriesRef.current
+              );
+              
+              setTranscript(replacedText);
+              baseTranscriptRef.current = backendTranscript.trim();
+            }
+          } catch (error) {
+            console.debug("Polling for transcript (not available yet)");
+          }
+        }
+      }, 2000);
+
       try {
         await liveKitService.connect({ wsUrl, token });
         roomNameRef.current = liveKitService.getRoomName();
         const currentState = liveKitService.getConnectionState();
         setConnectionState(currentState);
         
-        // Check if connection was successful
         if (currentState !== ConnectionState.Connected) {
           console.warn("Connection state after connect is not Connected:", currentState);
-          // Wait a bit and check again
           await new Promise(resolve => setTimeout(resolve, 1000));
           const newState = liveKitService.getConnectionState();
           if (newState !== ConnectionState.Connected) {
@@ -270,8 +264,8 @@ export function useRecording(): UseRecordingReturn {
         setIsConnecting(false);
       } catch (connectError: any) {
         console.error("Error during LiveKit connection:", connectError);
-        shouldHandleDisconnectRef.current = false; // Don't trigger disconnect handler
-        throw connectError; // Re-throw to be caught by outer catch
+        shouldHandleDisconnectRef.current = false;
+        throw connectError;
       }
     } catch (error: any) {
       console.error("Error starting recording:", error);
@@ -281,7 +275,6 @@ export function useRecording(): UseRecordingReturn {
       setIsMicOn(false);
       setIsTranscribing(false);
       isRecordingRef.current = false;
-      // Don't throw - let the UI handle the error state
     }
   }, [isMicOn]);
 
@@ -296,62 +289,52 @@ export function useRecording(): UseRecordingReturn {
       const roomName = roomNameRef.current;
       isRecordingRef.current = false;
 
-      // Clear timeout if it exists
       if (speechRecognitionTimeoutRef.current) {
         clearTimeout(speechRecognitionTimeoutRef.current);
         speechRecognitionTimeoutRef.current = null;
       }
 
-      // Stop speech recognition
+      if (transcriptPollingIntervalRef.current) {
+        clearInterval(transcriptPollingIntervalRef.current);
+        transcriptPollingIntervalRef.current = null;
+      }
+
       speechRecognitionService.stop();
 
-      // Clear transcript callback to prevent any late-arriving transcripts
       liveKitService.setTranscriptCallback(null);
 
-      // Mark transcription as inactive
       setIsTranscribing(false);
 
-      // Disconnect from LiveKit
       await liveKitService.disconnect();
       setConnectionState(null);
       setAudioLevel(0);
 
-      // Get final transcript from backend, but only use it if it's different/better than what we have
-      // This prevents overwriting with duplicates
       if (roomName) {
         try {
           const { transcript: finalTranscript } =
             await apiService.getFinalTranscript({ roomName });
           if (finalTranscript && finalTranscript.trim() && !finalTranscript.includes("There is no transcript")) {
-            // Only update if the backend transcript is significantly different or if we don't have a client transcript
             const currentTranscript = transcript.trim();
             const backendTranscript = finalTranscript.trim();
             
-            // Normalize both for comparison
             const currentNormalized = currentTranscript.toLowerCase();
             const backendNormalized = backendTranscript.toLowerCase();
             
-            // If backend transcript is substantially different (not just a duplicate), use it
-            // Otherwise, keep the client-side transcript to avoid duplicates
             if (!currentTranscript || 
                 (!backendNormalized.includes(currentNormalized) && !currentNormalized.includes(backendNormalized))) {
-              // Apply dictionary replacements to final transcript from backend
               const replacedBackendTranscript = replaceWordsWithDictionary(
                 backendTranscript,
                 dictionaryEntriesRef.current
               );
               setTranscript(replacedBackendTranscript);
             } else {
-              // Backend transcript is similar to what we have, keep client version to avoid duplicates
               console.log("Keeping client-side transcript to avoid duplicates");
             }
           } else if (transcript.trim()) {
-            // Use the transcript we already have if backend doesn't have it
             console.log("Using client-side transcript");
           }
         } catch (error) {
           console.error("Error getting final transcript:", error);
-          // Use the transcript we already have
           if (transcript.trim()) {
             console.log("Using client-side transcript due to error");
           }
@@ -368,10 +351,8 @@ export function useRecording(): UseRecordingReturn {
     }
   }, [transcript]);
 
-  // Cleanup on unmount only (not when isMicOn changes)
   useEffect(() => {
     return () => {
-      // Only cleanup if we're actually recording (check ref, not state)
       if (isRecordingRef.current) {
         console.log("Component unmounting, cleaning up recording...");
         isRecordingRef.current = false;
@@ -380,8 +361,7 @@ export function useRecording(): UseRecordingReturn {
         liveKitService.disconnect().catch(console.error);
       }
     };
-    // Empty dependency array - only run cleanup on unmount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
 
   return {

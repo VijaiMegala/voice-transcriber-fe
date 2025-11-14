@@ -37,22 +37,18 @@ class LiveKitService {
   private microphoneSource: MediaStreamAudioSourceNode | null = null;
 
   async connect(config: LiveKitConfig): Promise<Room> {
-    // Clean up any existing connection
     if (this.room) {
       await this.disconnect();
     }
 
     const room = new Room({
-      // Configure room options
       adaptiveStream: true,
       dynacast: true,
     });
     this.room = room;
 
-    // Set up connection state listener
     this.setupConnectionStateListener(room);
 
-    // Connect to room
     try {
       await room.connect(config.wsUrl, config.token);
       console.log("Connected to LiveKit room:", room.name);
@@ -61,17 +57,13 @@ class LiveKitService {
       throw error;
     }
 
-    // Wait a bit for connection to stabilize
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Create and publish audio track
     try {
-      // On mobile, ensure we request audio with proper constraints
       const audioConstraints: MediaTrackConstraints = {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
-        // Add sample rate constraints for better mobile compatibility
         sampleRate: { ideal: 16000 },
         channelCount: { ideal: 1 },
       };
@@ -81,7 +73,6 @@ class LiveKitService {
       });
       this.audioTrack = audioTrack;
       
-      // Monitor audio levels (with delay to ensure track is ready on mobile)
       setTimeout(() => {
         this.startAudioLevelMonitoring(audioTrack);
       }, 100);
@@ -96,7 +87,6 @@ class LiveKitService {
       throw error;
     }
 
-    // Set up transcription listener
     this.setupTranscriptListener(room);
 
     return room;
@@ -116,7 +106,6 @@ class LiveKitService {
       }
     });
 
-    // Add media track error listener
     room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
       console.log("Track subscribed:", track.kind, participant.identity);
     });
@@ -125,7 +114,6 @@ class LiveKitService {
       console.log("Track unsubscribed:", track.kind, participant.identity);
     });
 
-    // Listen for local track publication errors
     room.localParticipant.on("trackPublished", (publication) => {
       console.log("Local track published:", publication.trackSid);
     });
@@ -136,37 +124,86 @@ class LiveKitService {
   }
 
   private setupTranscriptListener(room: Room): void {
-    room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
+    room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant, kind?: any, topic?: string) => {
       try {
         const text = new TextDecoder().decode(payload);
-        console.log("Data received from LiveKit:", text, "Participant:", participant?.identity);
+        console.log("Data received from LiveKit:", text, "Participant:", participant?.identity, "Topic:", topic);
         
-        // Try to parse as JSON
         try {
           const transcriptData: TranscriptData = JSON.parse(text);
           
           if (transcriptData.type === "transcript" && transcriptData.text) {
-            console.log("Received transcript:", transcriptData.text);
+            console.log("Received transcript (JSON):", transcriptData.text);
             this.transcriptCallback?.(transcriptData.text);
             return;
           }
         } catch (parseError) {
-          // Not JSON, check if it's plain text that might be a transcript
-          if (text.trim().length > 0 && (text.includes("transcript") || text.toLowerCase().includes("said") || text.length > 10)) {
-            console.log("Received plain text (possibly transcript):", text);
-            // Try to extract transcript from various formats
-            this.transcriptCallback?.(text);
-            return;
+          if (text.trim().length > 0) {
+            if (text.length > 3 && !text.startsWith("{") && !text.startsWith("[") && !text.includes("error")) {
+              console.log("Received plain text (possibly transcript):", text);
+              this.transcriptCallback?.(text.trim());
+              return;
+            }
           }
         }
       } catch (error) {
         console.error("Error processing data message:", error);
       }
     });
+
+    room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+      console.log("Remote participant connected:", participant.identity, participant.name);
+      
+      participant.on("dataReceived", (payload: Uint8Array, kind?: any) => {
+        try {
+          const text = new TextDecoder().decode(payload);
+          console.log("Data received from participant:", participant.identity, "Text:", text, "Kind:", kind);
+          
+          try {
+            const transcriptData: TranscriptData = JSON.parse(text);
+            if (transcriptData.type === "transcript" && transcriptData.text) {
+              console.log("Received transcript from participant:", transcriptData.text);
+              this.transcriptCallback?.(transcriptData.text);
+              return;
+            }
+          } catch (parseError) {
+            if (text.trim().length > 3 && !text.startsWith("{") && !text.startsWith("[")) {
+              console.log("Received plain text transcript from participant:", text);
+              this.transcriptCallback?.(text.trim());
+            }
+          }
+        } catch (error) {
+          console.error("Error processing participant data:", error);
+        }
+      });
+    });
+
+    room.remoteParticipants.forEach((participant) => {
+      console.log("Found existing remote participant:", participant.identity);
+      participant.on("dataReceived", (payload: Uint8Array, kind?: any) => {
+        try {
+          const text = new TextDecoder().decode(payload);
+          console.log("Data from existing participant:", participant.identity, "Text:", text);
+          
+          try {
+            const transcriptData: TranscriptData = JSON.parse(text);
+            if (transcriptData.type === "transcript" && transcriptData.text) {
+              this.transcriptCallback?.(transcriptData.text);
+              return;
+            }
+          } catch (parseError) {
+            if (text.trim().length > 3 && !text.startsWith("{") && !text.startsWith("[")) {
+              this.transcriptCallback?.(text.trim());
+            }
+          }
+        } catch (error) {
+          console.error("Error processing existing participant data:", error);
+        }
+      });
+    });
   }
 
   private startAudioLevelMonitoring(track: LocalAudioTrack): void {
-    // Stop any existing monitoring
     this.stopAudioLevelMonitoring();
 
     if (!track || !track.mediaStreamTrack) {
@@ -174,8 +211,6 @@ class LiveKitService {
     }
 
     try {
-      // Create audio context and analyser
-      // Use AudioContext or webkitAudioContext for better mobile compatibility
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) {
         console.warn("AudioContext not supported, audio level monitoring disabled");
@@ -184,7 +219,6 @@ class LiveKitService {
 
       this.audioContext = new AudioContextClass();
       
-      // Resume AudioContext if suspended (required on mobile browsers)
       if (this.audioContext.state === 'suspended') {
         this.audioContext.resume().catch((error) => {
           console.error("Error resuming AudioContext:", error);
@@ -199,24 +233,21 @@ class LiveKitService {
       this.microphoneSource = this.audioContext.createMediaStreamSource(stream);
       this.microphoneSource.connect(this.analyser);
 
-      // Monitor audio levels every 100ms
       this.audioLevelInterval = setInterval(() => {
         if (this.analyser && this.audioContext && this.audioContext.state === 'running') {
           const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
           this.analyser.getByteTimeDomainData(dataArray);
           
-          // Calculate RMS (Root Mean Square) for volume
           let sum = 0;
           for (let i = 0; i < dataArray.length; i++) {
             const normalized = (dataArray[i] - 128) / 128;
             sum += normalized * normalized;
           }
           const rms = Math.sqrt(sum / dataArray.length);
-          const normalizedLevel = Math.min(rms * 2, 1); // Amplify and clamp to 0-1
+          const normalizedLevel = Math.min(rms * 2, 1);
           
           this.audioLevelCallback?.(normalizedLevel);
         } else if (this.audioContext && this.audioContext.state === 'suspended') {
-          // Try to resume if suspended
           this.audioContext.resume().catch((error) => {
             console.error("Error resuming suspended AudioContext:", error);
           });
@@ -237,7 +268,6 @@ class LiveKitService {
       try {
         this.microphoneSource.disconnect();
       } catch (error) {
-        // Ignore disconnect errors
       }
       this.microphoneSource = null;
     }
@@ -275,11 +305,9 @@ class LiveKitService {
   }
 
   async disconnect(): Promise<void> {
-    // Stop audio level monitoring
     this.stopAudioLevelMonitoring();
 
     if (this.room) {
-      // Unpublish track first
       if (this.publishedTrack?.track) {
         try {
           await this.room.localParticipant.unpublishTrack(
@@ -291,7 +319,6 @@ class LiveKitService {
         this.publishedTrack = null;
       }
 
-      // Disconnect from room
       try {
         await this.room.disconnect();
       } catch (error) {
@@ -300,7 +327,6 @@ class LiveKitService {
       this.room = null;
     }
 
-    // Stop the audio track
     if (this.audioTrack) {
       try {
         this.audioTrack.stop();
@@ -310,7 +336,6 @@ class LiveKitService {
       this.audioTrack = null;
     }
 
-    // Clear callbacks
     this.transcriptCallback = null;
     this.connectionStateCallback = null;
     this.audioLevelCallback = null;

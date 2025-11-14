@@ -139,7 +139,6 @@ class ApiService {
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Clear invalid token
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("user");
@@ -163,7 +162,6 @@ class ApiService {
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Clear invalid token
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("user");
@@ -187,7 +185,6 @@ class ApiService {
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Clear invalid token
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("user");
@@ -211,7 +208,6 @@ class ApiService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: "Failed to sign up" }));
-      // Handle validation errors
       if (error.message && Array.isArray(error.message)) {
         throw new Error(error.message.join(", "));
       }
@@ -232,7 +228,6 @@ class ApiService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: "Failed to sign in" }));
-      // Handle validation errors
       if (error.message && Array.isArray(error.message)) {
         throw new Error(error.message.join(", "));
       }
@@ -250,7 +245,6 @@ class ApiService {
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Clear invalid token
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
           localStorage.removeItem("user");
@@ -264,7 +258,6 @@ class ApiService {
   }
 
   async createTranscript(request: CreateTranscriptDto): Promise<TranscriptItem> {
-    // Ensure we have a valid transcript
     if (!request.transcript || !request.transcript.trim()) {
       throw new Error("Transcript cannot be empty");
     }
@@ -292,7 +285,6 @@ class ApiService {
         statusCode: response.status
       }));
       
-      // Handle validation errors from NestJS
       if (errorData.message && Array.isArray(errorData.message)) {
         throw new Error(errorData.message.join(", "));
       }

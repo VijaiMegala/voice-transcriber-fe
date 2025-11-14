@@ -19,7 +19,6 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -49,11 +48,9 @@ export default function AuthPage() {
         });
       }
 
-      // Store token in localStorage
       localStorage.setItem("accessToken", response.accessToken);
       localStorage.setItem("user", JSON.stringify(response.user));
 
-      // Redirect to home page
       router.push("/home");
     } catch (err: any) {
       setError(err.message || "An error occurred. Please try again.");

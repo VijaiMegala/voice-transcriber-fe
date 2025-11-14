@@ -180,10 +180,8 @@ export default function HistoryPage() {
   return (
     <PageLayout>
       <div className="w-full max-w-7xl h-[calc(100vh-120px)] sm:h-[calc(100vh-160px)] md:h-[calc(100vh-200px)] flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Tabs */}
         <div className="flex items-center justify-between border-b border-gray-200 px-4 sm:px-6 pt-3 sm:pt-4">
           <div className="flex items-center gap-2">
-            {/* Mobile Sidebar Toggle Button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="md:hidden p-2 hover:bg-gray-100 rounded transition-colors"
@@ -215,7 +213,6 @@ export default function HistoryPage() {
         </div>
 
         <div className="flex flex-1 overflow-hidden relative">
-          {/* Mobile Sidebar Backdrop */}
           {isSidebarOpen && (
             <div
               className="md:hidden fixed inset-0 bg-black/50 z-[5]"
@@ -223,9 +220,7 @@ export default function HistoryPage() {
             />
           )}
 
-          {/* Left Sidebar */}
           <div className={`${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 absolute md:relative z-10 w-full md:w-80 border-r border-gray-200 flex flex-col bg-gray-50 transition-transform duration-300 ease-in-out h-full`}>
-            {/* Search Bar */}
             <div className="p-3 sm:p-4 border-b border-gray-200">
               <Input
                 type="text"
@@ -236,7 +231,6 @@ export default function HistoryPage() {
               />
             </div>
 
-            {/* Transcript List */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
               {isLoading ? (
                 <div className="text-center text-gray-500 py-8">Loading...</div>
@@ -245,7 +239,6 @@ export default function HistoryPage() {
               ) : (
                 Object.entries(groupedTranscripts)
                   .sort((a, b) => {
-                    // Sort by the first transcript's date in each group
                     const dateA = new Date(a[1][0].createdAt).getTime();
                     const dateB = new Date(b[1][0].createdAt).getTime();
                     return dateB - dateA;
@@ -315,7 +308,6 @@ export default function HistoryPage() {
             </div>
           </div>
 
-          {/* Right Main Content */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {selectedTranscript ? (
               <>
@@ -382,7 +374,6 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -422,7 +413,6 @@ export default function HistoryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

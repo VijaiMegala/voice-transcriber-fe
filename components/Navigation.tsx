@@ -115,7 +115,6 @@ export function Navigation({ className = "" }: NavigationProps) {
           </div>
         </div>
       </nav>
-      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden w-full sm:w-[80%] mt-2 bg-white/80 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg">
           <div className="flex flex-col gap-3">

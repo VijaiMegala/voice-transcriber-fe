@@ -31,7 +31,6 @@ export default function HomePage() {
   const handleToggle = async () => {
     if (isMicOn) {
       await stopRecording();
-      // Open modal if there's a transcript
       if (transcript.trim()) {
         setIsModalOpen(true);
       }

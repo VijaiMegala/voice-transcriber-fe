@@ -70,7 +70,6 @@ export function EditableCell({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // On mobile/touch devices, use single tap
     if (isTouchDevice()) {
       e.preventDefault();
       onStartEdit();
@@ -78,7 +77,6 @@ export function EditableCell({
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
-    // Only allow double-click on non-touch devices
     if (!isTouchDevice()) {
       onStartEdit();
     }
