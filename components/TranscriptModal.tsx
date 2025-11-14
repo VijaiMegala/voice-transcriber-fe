@@ -16,6 +16,8 @@ interface TranscriptModalProps {
   onSave: () => void;
   onCancel: () => void;
   onTranscriptChange: (text: string) => void;
+  isSaving?: boolean;
+  saveError?: string | null;
 }
 
 export function TranscriptModal({
@@ -25,6 +27,8 @@ export function TranscriptModal({
   onSave,
   onCancel,
   onTranscriptChange,
+  isSaving = false,
+  saveError = null,
 }: TranscriptModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,13 +45,19 @@ export function TranscriptModal({
             onChange={(e) => onTranscriptChange(e.target.value)}
             className="min-h-[200px]"
             placeholder="Your transcript will appear here..."
+            disabled={isSaving}
           />
+          {saveError && (
+            <p className="text-sm text-red-500 mt-2">{saveError}</p>
+          )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={onSave}>Save</Button>
+          <Button onClick={onSave} disabled={isSaving || !transcript.trim()}>
+            {isSaving ? "Saving..." : "Save"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

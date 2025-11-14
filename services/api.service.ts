@@ -57,6 +57,40 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export interface CreateTranscriptDto {
+  transcript: string;
+}
+
+export interface UpdateTranscriptDto {
+  transcript?: string;
+  transcriptName?: string;
+}
+
+export interface RenameTranscriptDto {
+  transcriptName: string;
+}
+
+export interface TranscriptItem {
+  transcriptId: number;
+  transcriptName: string;
+  transcript: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TranscriptListResponse {
+  transcripts: TranscriptItem[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface GetTranscriptsQuery {
+  offset?: number;
+  limit?: number;
+}
+
 class ApiService {
   private getAuthToken(): string | null {
     if (typeof window === "undefined") return null;
@@ -102,7 +136,7 @@ class ApiService {
   async sendTranscriptChunk(
     request: TranscriptRequest
   ): Promise<TranscriptResponse> {
-    const response = await fetch(`${API_BASE_URL}/transcript`, {
+    const response = await fetch(`${API_BASE_URL}/livekit/transcript`, {
       method: "POST",
       headers: this.getAuthHeaders(),
       body: JSON.stringify(request),
@@ -126,7 +160,7 @@ class ApiService {
   async getFinalTranscript(
     request: FinalTranscriptRequest
   ): Promise<FinalTranscriptResponse> {
-    const response = await fetch(`${API_BASE_URL}/transcript/final`, {
+    const response = await fetch(`${API_BASE_URL}/livekit/transcript/final`, {
       method: "POST",
       headers: this.getAuthHeaders(),
       body: JSON.stringify(request),
@@ -208,6 +242,155 @@ class ApiService {
     }
 
     return response.json();
+  }
+
+  async createTranscript(request: CreateTranscriptDto): Promise<TranscriptItem> {
+    // Ensure we have a valid transcript
+    if (!request.transcript || !request.transcript.trim()) {
+      throw new Error("Transcript cannot be empty");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/transcript`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({
+        transcript: request.transcript.trim(),
+      }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      
+      const errorData = await response.json().catch(() => ({ 
+        message: "Failed to create transcript",
+        error: "Bad Request",
+        statusCode: response.status
+      }));
+      
+      // Handle validation errors from NestJS
+      if (errorData.message && Array.isArray(errorData.message)) {
+        throw new Error(errorData.message.join(", "));
+      }
+      
+      throw new Error(errorData.message || "Failed to create transcript");
+    }
+
+    return response.json();
+  }
+
+  async getAllTranscripts(query?: GetTranscriptsQuery): Promise<TranscriptListResponse> {
+    const params = new URLSearchParams();
+    if (query?.offset !== undefined) params.append("offset", query.offset.toString());
+    if (query?.limit !== undefined) params.append("limit", query.limit.toString());
+
+    const url = `${API_BASE_URL}/transcript${params.toString() ? `?${params.toString()}` : ""}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      throw new Error("Failed to get transcripts");
+    }
+
+    return response.json();
+  }
+
+  async getTranscript(transcriptId: number): Promise<TranscriptItem> {
+    const response = await fetch(`${API_BASE_URL}/transcript/${transcriptId}`, {
+      method: "GET",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      const error = await response.json().catch(() => ({ message: "Failed to get transcript" }));
+      throw new Error(error.message || "Failed to get transcript");
+    }
+
+    return response.json();
+  }
+
+  async updateTranscript(transcriptId: number, request: UpdateTranscriptDto): Promise<TranscriptItem> {
+    const response = await fetch(`${API_BASE_URL}/transcript/${transcriptId}`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      const error = await response.json().catch(() => ({ message: "Failed to update transcript" }));
+      throw new Error(error.message || "Failed to update transcript");
+    }
+
+    return response.json();
+  }
+
+  async renameTranscript(transcriptId: number, request: RenameTranscriptDto): Promise<TranscriptItem> {
+    const response = await fetch(`${API_BASE_URL}/transcript/${transcriptId}/rename`, {
+      method: "PATCH",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      const error = await response.json().catch(() => ({ message: "Failed to rename transcript" }));
+      throw new Error(error.message || "Failed to rename transcript");
+    }
+
+    return response.json();
+  }
+
+  async deleteTranscript(transcriptId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/transcript/${transcriptId}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+        throw new Error("Authentication required. Please sign in again.");
+      }
+      const error = await response.json().catch(() => ({ message: "Failed to delete transcript" }));
+      throw new Error(error.message || "Failed to delete transcript");
+    }
   }
 }
 

@@ -50,6 +50,12 @@ export function Navigation({ className = "" }: NavigationProps) {
               Home
             </Link>
             <Link
+              href="/history"
+              className="text-md font-medium text-gray-700 transition-colors hover:opacity-50"
+            >
+              History
+            </Link>
+            <Link
               href="/dictionary"
               className="text-md font-medium text-gray-700 transition-colors hover:opacity-50"
             >
